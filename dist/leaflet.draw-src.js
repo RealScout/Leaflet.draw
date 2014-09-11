@@ -1135,6 +1135,7 @@ L.Edit = L.Edit || {};
 
 L.Edit.Poly = L.Handler.extend({
 	options: {
+		allowIntersection: false,
 		icon: new L.DivIcon({
 			iconSize: new L.Point(8, 8),
 			className: 'leaflet-div-icon leaflet-editing-icon'
@@ -1223,7 +1224,8 @@ L.Edit.Poly = L.Handler.extend({
 		marker._index = index;
 
 		marker.on('drag', this._onMarkerDrag, this);
-		marker.on('dragend', this._fireEdit, this);
+		marker.on('dragend', this._onMarkerDragEnd, this);
+		marker.on('dragstart', this._onMarkerDragStart, this);
 
 		this._markerGroup.addLayer(marker);
 
@@ -1240,13 +1242,61 @@ L.Edit.Poly = L.Handler.extend({
 
 		marker
 			.off('drag', this._onMarkerDrag, this)
-			.off('dragend', this._fireEdit, this)
+			.off('dragend', this._onMarkerDragEnd, this)
+			.off('dragstart', this._onMarkerDragStart, this)
 			.off('click', this._onMarkerClick, this);
 	},
 
 	_fireEdit: function () {
 		this._poly.edited = true;
 		this._poly.fire('edit');
+	},
+
+	_onMarkerDragStart: function (e) {
+		var marker = e.target;
+		marker._srcLatLng = {};
+		L.extend(marker._srcLatLng, marker._latlng);
+	},
+
+	_onMarkerDragEnd: function (e) {
+
+		// Allow intersection, stop here
+		if (this.options.allowIntersection) {
+			this._fireEdit();
+			return;
+		}
+
+		var marker = e.target,
+			points = this._poly.getLatLngs(),
+			intersects = false,
+			i, point, srcPoint;
+
+		for (i in points) {
+			if (points.hasOwnProperty(i)) {
+				point = points[i];
+				if (this._poly.intersects(marker.getLatLng())) {
+					intersects = true;
+					// Reset marker to original position
+					srcPoint = new L.LatLng(
+						marker._srcLatLng.lat,
+						marker._srcLatLng.lng
+					);
+					L.extend(marker._origLatLng, srcPoint);
+					marker.setLatLng(srcPoint);
+					break;
+				}
+			}
+		}
+
+		// No intersection, stop here
+		if (!intersects) {
+			this._fireEdit();
+			return;
+		}
+
+		// Redraw the polygon
+		this._poly.redraw();
+		this.updateMarkers();
 	},
 
 	_onMarkerDrag: function (e) {
@@ -1311,10 +1361,10 @@ L.Edit.Poly = L.Handler.extend({
 
 	_createMiddleMarker: function (marker1, marker2) {
 		var latlng = this._getMiddleLatLng(marker1, marker2),
-		    marker = this._createMarker(latlng),
-		    onClick,
-		    onDragStart,
-		    onDragEnd;
+			marker = this._createMarker(latlng),
+			onClick,
+			onDragStart,
+			onDragEnd;
 
 		marker.setOpacity(0.6);
 
@@ -1326,8 +1376,8 @@ L.Edit.Poly = L.Handler.extend({
 			marker._index = i;
 
 			marker
-			    .off('click', onClick, this)
-			    .on('click', this._onMarkerClick, this);
+				.off('click', onClick, this)
+				.on('click', this._onMarkerClick, this);
 
 			latlng.lat = marker.getLatLng().lat;
 			latlng.lng = marker.getLatLng().lng;
@@ -1359,9 +1409,9 @@ L.Edit.Poly = L.Handler.extend({
 		};
 
 		marker
-		    .on('click', onClick, this)
-		    .on('dragstart', onDragStart, this)
-		    .on('dragend', onDragEnd, this);
+			.on('click', onClick, this)
+			.on('dragstart', onDragStart, this)
+			.on('dragend', onDragEnd, this);
 
 		this._markerGroup.addLayer(marker);
 	},
@@ -1377,8 +1427,8 @@ L.Edit.Poly = L.Handler.extend({
 
 	_getMiddleLatLng: function (marker1, marker2) {
 		var map = this._poly._map,
-		    p1 = map.project(marker1.getLatLng()),
-		    p2 = map.project(marker2.getLatLng());
+			p1 = map.project(marker1.getLatLng()),
+			p2 = map.project(marker2.getLatLng());
 
 		return map.unproject(p1._add(p2)._divideBy(2));
 	}
