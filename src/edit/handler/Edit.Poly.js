@@ -10,10 +10,19 @@ L.Edit.Poly = L.Handler.extend({
 		icon: new L.DivIcon({
 			iconSize: new L.Point(8, 8),
 			className: 'leaflet-div-icon leaflet-editing-icon'
-		})
+		}),
+		touchIcon: new L.DivIcon({
+			iconSize: new L.Point(20, 20),
+			className: 'leaflet-div-icon leaflet-editing-icon leaflet-touch-icon'
+		}),
 	},
 
 	initialize: function (poly, options) {
+		// if touch, switch to touch icon
+		if (L.Browser.touch) {
+			this.options.icon = this.options.touchIcon;
+		}
+
 		this._poly = poly;
 		L.setOptions(this, options);
 	},
@@ -28,6 +37,9 @@ L.Edit.Poly = L.Handler.extend({
 		poly.setStyle(poly.options.editing);
 
 		if (this._poly._map) {
+
+			this._map = this._poly._map; // Set map
+
 			if (!this._markerGroup) {
 				this._initMarkers();
 			}
@@ -86,17 +98,20 @@ L.Edit.Poly = L.Handler.extend({
 	},
 
 	_createMarker: function (latlng, index) {
-		var marker = new L.Marker(latlng, {
+		// Extending L.Marker in TouchEvents.js to include touch.
+		var marker = new L.Marker.Touch(latlng, {
 			draggable: true,
-			icon: this.options.icon
+			icon: this.options.icon,
 		});
 
 		marker._origLatLng = latlng;
 		marker._index = index;
 
-		marker.on('drag', this._onMarkerDrag, this);
-		marker.on('dragend', this._onMarkerDragEnd, this);
-		marker.on('dragstart', this._onMarkerDragStart, this);
+		marker
+			.on('drag', this._onMarkerDrag, this)
+			.on('dragend', this._fireEdit, this)
+			.on('touchmove', this._onTouchMove, this)
+			.on('touchend', this._fireEdit, this);
 
 		this._markerGroup.addLayer(marker);
 
@@ -113,8 +128,9 @@ L.Edit.Poly = L.Handler.extend({
 
 		marker
 			.off('drag', this._onMarkerDrag, this)
-			.off('dragend', this._onMarkerDragEnd, this)
-			.off('dragstart', this._onMarkerDragStart, this)
+			.off('dragend', this._fireEdit, this)
+			.off('touchmove', this._onMarkerDrag, this)
+			.off('touchend', this._fireEdit, this)
 			.off('click', this._onMarkerClick, this);
 	},
 
@@ -186,6 +202,7 @@ L.Edit.Poly = L.Handler.extend({
 	},
 
 	_onMarkerClick: function (e) {
+
 		var minPoints = L.Polygon && (this._poly instanceof L.Polygon) ? 4 : 3,
 			marker = e.target;
 
@@ -220,6 +237,25 @@ L.Edit.Poly = L.Handler.extend({
 		}
 
 		this._fireEdit();
+	},
+
+	_onTouchMove: function (e) {
+
+		var layerPoint = this._map.mouseEventToLayerPoint(e.originalEvent.touches[0]),
+			latlng = this._map.layerPointToLatLng(layerPoint),
+			marker = e.target;
+				
+		L.extend(marker._origLatLng, latlng);
+
+		if (marker._middleLeft) {
+			marker._middleLeft.setLatLng(this._getMiddleLatLng(marker._prev, marker));
+		}
+		if (marker._middleRight) {
+			marker._middleRight.setLatLng(this._getMiddleLatLng(marker, marker._next));
+		}
+
+		this._poly.redraw();
+		this.updateMarkers();
 	},
 
 	_updateIndexes: function (index, delta) {
@@ -268,6 +304,7 @@ L.Edit.Poly = L.Handler.extend({
 		onDragEnd = function () {
 			marker.off('dragstart', onDragStart, this);
 			marker.off('dragend', onDragEnd, this);
+			marker.off('touchmove', onDragStart, this);
 
 			this._createMiddleMarker(marker1, marker);
 			this._createMiddleMarker(marker, marker2);
@@ -282,7 +319,8 @@ L.Edit.Poly = L.Handler.extend({
 		marker
 			.on('click', onClick, this)
 			.on('dragstart', onDragStart, this)
-			.on('dragend', onDragEnd, this);
+			.on('dragend', onDragEnd, this)
+			.on('touchmove', onDragStart, this);
 
 		this._markerGroup.addLayer(marker);
 	},
