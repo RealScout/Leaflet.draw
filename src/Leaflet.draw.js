@@ -42,6 +42,7 @@ L.drawLocal = {
 				}
 			},
 			polygon: {
+				error: '<strong>Error:</strong> shapes may cross each other, but not themselves.',
 				tooltip: {
 					start: 'Click to start drawing shape.',
 					cont: 'Click to continue drawing shape.',

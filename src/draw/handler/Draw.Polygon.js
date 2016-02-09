@@ -6,7 +6,7 @@ L.Draw.Polygon = L.Draw.Polyline.extend({
 	Poly: L.Polygon,
 
 	options: {
-		showArea: false,
+		showArea: true,
 		shapeOptions: {
 			stroke: true,
 			color: '#f06eaa',
@@ -31,7 +31,7 @@ L.Draw.Polygon = L.Draw.Polyline.extend({
 
 		// The first marker should have a click handler to close the polygon
 		if (markerCount === 1) {
-			this._markers[0].on('click', this._finishShape, this);
+			this._markers[0].on('click touchstart', this._finishShape, this);
 		}
 
 		// Add and update the double click handler
@@ -93,7 +93,7 @@ L.Draw.Polygon = L.Draw.Polyline.extend({
 		var markerCount = this._markers.length;
 
 		if (markerCount > 0) {
-			this._markers[0].off('click', this._finishShape, this);
+			this._markers[0].off('click touchstart', this._finishPolyShape, this);
 
 			if (markerCount > 2) {
 				this._markers[markerCount - 1].off('dblclick', this._finishShape, this);
