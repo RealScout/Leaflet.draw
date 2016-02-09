@@ -13,7 +13,7 @@ L.Edit.Poly = L.Handler.extend({
 		touchIcon: new L.DivIcon({
 			iconSize: new L.Point(20, 20),
 			className: 'leaflet-div-icon leaflet-editing-icon leaflet-touch-icon'
-		}),
+		})
 	},
 
 	initialize: function (poly, options) {
@@ -100,7 +100,7 @@ L.Edit.Poly = L.Handler.extend({
 		// Extending L.Marker in TouchEvents.js to include touch.
 		var marker = new L.Marker.Touch(latlng, {
 			draggable: true,
-			icon: this.options.icon,
+			icon: this.options.icon
 		});
 
 		marker._origLatLng = latlng;
