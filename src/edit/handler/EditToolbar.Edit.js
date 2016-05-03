@@ -63,6 +63,8 @@ L.EditToolbar.Edit = L.Handler.extend({
 				subtext: L.drawLocal.edit.handlers.edit.tooltip.subtext
 			});
 
+			map._editTooltip = this._tooltip;
+
 			this._map
 				.on('mousemove', this._onMouseMove, this)
 				.on('touchmove', this._onMouseMove, this)
@@ -146,7 +148,7 @@ L.EditToolbar.Edit = L.Handler.extend({
 
 	_enableLayerEdit: function (e) {
 		var layer = e.layer || e.target || e,
-			pathOptions;
+			pathOptions, poly;
 
 		// Back up this layer (if haven't before)
 		this._backupLayer(layer);
@@ -163,6 +165,11 @@ L.EditToolbar.Edit = L.Handler.extend({
 
 			layer.options.original = L.extend({}, layer.options);
 			layer.options.editing = pathOptions;
+		}
+
+		if (this.options.poly) {
+			poly = L.Util.extend({}, this.options.poly);
+			layer.options.poly = poly;
 		}
 
 		if (this.isMarker) {
